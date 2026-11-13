@@ -738,8 +738,8 @@
 
       return {
         households: [
-          { id: h1Id, code: 'DOM-GLOWNY', name: 'Dom Zdrawko', pin_hash: '', created_at: '2025-02-10T08:00:00Z' },
-          { id: h2Id, code: 'DOM-SIOSTRY', name: 'Rodzina Siostry', pin_hash: '', created_at: '2025-02-11T09:00:00Z' }
+          { id: h1Id, code: 'DOM-GLOWNY', name: 'Dom Zdrawko', pin_hash: '1234', created_at: '2025-02-10T08:00:00Z' },
+          { id: h2Id, code: 'DOM-SIOSTRY', name: 'Rodzina Siostry', pin_hash: '4321', created_at: '2025-02-11T09:00:00Z' }
         ],
         household_members: [m1_1, m1_2, m1_3, m2_1, m2_2],
         lists: [l1_shop1, l1_shop2, l1_tasks1, l2_shop1, l2_tasks1],
@@ -965,6 +965,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
     function App() {
       const STORAGE_KEY = 'pixelcart_db_v1';
       const SESSION_KEY = 'pixelcart_session_v1';
+      const UNLOCKED_KEY = 'pixelcart_unlocked_v1';
       const THEME_KEY = 'pixelcart_theme_v1';
       const SUPA_CREDS_KEY = 'pixelcart_supabase_creds_v1';
 
@@ -1022,15 +1023,47 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           const saved = localStorage.getItem(SESSION_KEY);
           if (saved) {
             const parsed = JSON.parse(saved);
-            if (parsed && parsed.householdId) return parsed;
+            if (parsed && 'householdId' in parsed) return parsed;
           }
         } catch {}
         return {
-          householdId: INITIAL_DB_STATE.households[0].id,
-          memberId: INITIAL_DB_STATE.household_members[0].id,
-          activeListId: INITIAL_DB_STATE.lists[0].id
+          householdId: null,
+          memberId: null,
+          activeListId: null
         };
       });
+
+      // Unlocked Households on this device (Only houses unlocked via Code + PIN are visible)
+      const [unlockedIds, setUnlockedIds] = useState(() => {
+        try {
+          const saved = localStorage.getItem(UNLOCKED_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        } catch {}
+        return [];
+      });
+
+      useEffect(() => {
+        try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(unlockedIds)); } catch {}
+      }, [unlockedIds]);
+
+      const unlockHouseholdOnDevice = useCallback((hId) => {
+        setUnlockedIds((prev) => (prev.includes(hId) ? prev : [...prev, hId]));
+      }, []);
+
+      const handleLogoutHousehold = useCallback(() => {
+        if (!session.householdId) return;
+        const removedId = session.householdId;
+        const remaining = unlockedIds.filter((id) => id !== removedId);
+        setUnlockedIds(remaining);
+        setSession({
+          householdId: remaining[0] || null,
+          memberId: null,
+          activeListId: null
+        });
+      }, [session.householdId, unlockedIds]);
 
       const channelRef = useRef(null);
       const [syncPulse, setSyncPulse] = useState(false);
@@ -1137,15 +1170,15 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           return next;
         });
       }, []);
+      // Derived Current Entities (Strictly isolated to unlocked household)
+      const unlockedHouseholds = useMemo(
+        () => db.households.filter((h) => unlockedIds.includes(h.id)),
+        [db.households, unlockedIds]
+      );
 
-      useEffect(() => {
-        try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
-      }, [session]);
-
-      // Derived Current Entities
       const currentHousehold = useMemo(
-        () => db.households.find((h) => h.id === session.householdId) || db.households[0] || null,
-        [db.households, session.householdId]
+        () => unlockedHouseholds.find((h) => h.id === session.householdId) || unlockedHouseholds[0] || null,
+        [unlockedHouseholds, session.householdId]
       );
 
       const householdMembers = useMemo(
@@ -1721,22 +1754,140 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       const categoriesForCurrentList =
         activeList?.list_type === 'shopping' ? SHOPPING_CATEGORIES : TASK_CATEGORIES;
 
+      // Full-screen PIN & Household Code Login Gate when no household is unlocked on this device
+      if (!currentHousehold) {
+        return (
+          <div
+            className={`min-h-screen flex flex-col items-center justify-center p-4 ${bgMain}`}
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <button
+                onClick={() => setShowSqlModal(true)}
+                className={`px-3 py-1.5 text-xs font-bold ${borderPixel} ${
+                  cloudConnected ? 'bg-[#10b981] text-[#1e1e24]' : 'bg-[#1e1e24] text-[#fde68a]'
+                }`}
+              >
+                {cloudConnected ? '☁️ Supabase: POŁĄCZONO' : '⚙️ Konfiguracja SQL & Supabase'}
+              </button>
+              <button
+                onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+                className={`p-1.5 ${bgSubtle} ${borderPixel}`}
+              >
+                {isDark ? <Sun className="w-4 h-4 text-[#fde68a]" /> : <Moon className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <HouseholdGateModal
+              isStandaloneGate={true}
+              db={db}
+              unlockedHouseholds={unlockedHouseholds}
+              currentHousehold={null}
+              onClose={() => {}}
+              onSelectHousehold={(hId) => {
+                unlockHouseholdOnDevice(hId);
+                setSession((prev) => ({ ...prev, householdId: hId }));
+              }}
+              onUpdatePin={async () => {}}
+              onLogoutHousehold={() => {}}
+              onCreateHousehold={async ({ code, name, pin, memberName, avatarId, colorHex }) => {
+                const newHouseholdId = generateId();
+                const newMemberId = generateId();
+                const newListId = generateId();
+
+                const newHousehold = {
+                  id: newHouseholdId,
+                  code: code.toUpperCase(),
+                  name,
+                  pin_hash: pin || '',
+                  created_at: new Date().toISOString()
+                };
+                const firstMember = {
+                  id: newMemberId,
+                  household_id: newHouseholdId,
+                  display_name: memberName,
+                  avatar_id: avatarId,
+                  color_hex: colorHex,
+                  created_at: new Date().toISOString()
+                };
+                const defaultShoppingList = {
+                  id: newListId,
+                  household_id: newHouseholdId,
+                  name: 'Główna Lista Zakupowa',
+                  list_type: 'shopping',
+                  created_by: newMemberId,
+                  is_archived: false,
+                  created_at: new Date().toISOString()
+                };
+                const seededCatalog = createSeedCatalogForHousehold(newHouseholdId);
+
+                commitDb(
+                  (prev) => ({
+                    ...prev,
+                    households: [...prev.households, newHousehold],
+                    household_members: [...prev.household_members, firstMember],
+                    lists: [...prev.lists, defaultShoppingList],
+                    product_catalog: [...prev.product_catalog, ...seededCatalog]
+                  }),
+                  `Utworzono nowe gospodarstwo: ${newHousehold.code}`
+                );
+
+                if (supabaseClient) {
+                  await supabaseClient.from('households').insert(newHousehold);
+                  await supabaseClient.from('household_members').insert(firstMember);
+                  await supabaseClient.from('lists').insert(defaultShoppingList);
+                  await supabaseClient.from('product_catalog').insert(seededCatalog);
+                }
+
+                unlockHouseholdOnDevice(newHouseholdId);
+                setSession({
+                  householdId: newHouseholdId,
+                  memberId: newMemberId,
+                  activeListId: newListId
+                });
+              }}
+              bgCard={bgCard}
+              bgSubtle={bgSubtle}
+              btnTactile={btnTactile}
+              borderPixel={borderPixel}
+            />
+
+            {showSqlModal && (
+              <SqlSetupModal
+                supaConfig={supaConfig}
+                cloudConnected={cloudConnected}
+                onSaveSupaConfig={(newCfg) => {
+                  setSupaConfig(newCfg);
+                  try { localStorage.setItem(SUPA_CREDS_KEY, JSON.stringify(newCfg)); } catch {}
+                }}
+                onClose={() => setShowSqlModal(false)}
+                onCopied={() => {}}
+                bgCard={bgCard}
+                bgSubtle={bgSubtle}
+                btnTactile={btnTactile}
+                borderPixel={borderPixel}
+              />
+            )}
+          </div>
+        );
+      }
+
       return (
         <div
           className={`min-h-screen flex flex-col ${bgMain} selection:bg-[#f59e0b] selection:text-[#1e1e24]`}
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
-          {/* TOP MULTI-HOUSEHOLD & SUPABASE BAR */}
+          {/* TOP HOUSEHOLD SECURITY & SUPABASE STATUS BAR (Only shows unlocked households) */}
           <div className="bg-[#1e1e24] text-[#f4f1ea] border-b-2 border-[#1e1e24] px-2.5 py-1.5 text-xs z-40">
             <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className="bg-[#f59e0b] text-[#1e1e24] px-1.5 py-0.5 font-bold uppercase tracking-wider text-[10px]"
+                  className="bg-[#10b981] text-[#1e1e24] px-1.5 py-0.5 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1"
                   style={{ fontFamily: "'Silkscreen', cursive" }}
                 >
-                  MULTI-DOM
+                  <Shield className="w-3 h-3" /> TWÓJ DOM
                 </span>
-                {db.households.map((h) => {
+                {unlockedHouseholds.map((h) => {
                   const isSelected = h.id === currentHousehold?.id;
                   return (
                     <button
@@ -1744,37 +1895,40 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                       onClick={() => {
                         setSession((prev) => ({ ...prev, householdId: h.id }));
                         setDuplicateGuard(null);
-                        triggerToast(`Przełączono na gospodarstwo: ${h.code} (${h.name})`);
+                        triggerToast(`Przełączono na: ${h.code} (${h.name})`);
                       }}
-                      className={`px-2 py-0.5 border border-[#52525b] font-bold transition-colors ${
+                      className={`px-2 py-0.5 border font-bold transition-colors ${
                         isSelected
-                          ? 'bg-[#10b981] text-[#1e1e24] border-[#10b981]'
-                          : 'bg-[#27272a] text-[#e4e4e7] hover:bg-[#3f3f46]'
+                          ? 'bg-[#f59e0b] text-[#1e1e24] border-[#f59e0b]'
+                          : 'bg-[#27272a] text-[#e4e4e7] border-[#52525b] hover:bg-[#3f3f46]'
                       }`}
                     >
-                      {h.code}
+                      🔒 {h.code}
                     </button>
                   );
                 })}
                 <button
                   onClick={() => setShowHouseholdGateModal(true)}
                   className="px-2 py-0.5 bg-[#3b82f6] text-white font-bold hover:bg-[#2563eb] flex items-center gap-1"
+                  title="Zaloguj do innego domu kodem PIN lub zmień PIN"
                 >
                   <KeyRound className="w-3 h-3" />
-                  <span>+ Nowy / Kod</span>
+                  <span>Kod & PIN</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleLogoutHousehold();
+                    triggerToast('Wylogowano z gospodarstwa na tym urządzeniu.');
+                  }}
+                  className="px-2 py-0.5 bg-[#ef4444] text-white font-bold hover:bg-[#dc2626] flex items-center gap-1"
+                  title="Wyloguj z bieżącego domu na tym urządzeniu"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span className="hidden sm:inline">Wyloguj</span>
                 </button>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSimulateFamilyMemberAction}
-                  className="px-2 py-0.5 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-bold flex items-center gap-1"
-                >
-                  <Zap className="w-3 h-3" />
-                  <span className="hidden md:inline">Symuluj ruch domownika</span>
-                  <span className="md:hidden">Symuluj Live</span>
-                </button>
-
                 <button
                   onClick={() => setShowSqlModal(true)}
                   className={`px-2 py-0.5 font-bold flex items-center gap-1 border ${
@@ -2919,16 +3073,39 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
           {showHouseholdGateModal && (
             <HouseholdGateModal
+              isStandaloneGate={false}
               db={db}
+              unlockedHouseholds={unlockedHouseholds}
               currentHousehold={currentHousehold}
               onClose={() => setShowHouseholdGateModal(false)}
               onSelectHousehold={(hId) => {
+                unlockHouseholdOnDevice(hId);
                 setSession((prev) => ({ ...prev, householdId: hId }));
                 setShowHouseholdGateModal(false);
                 const target = db.households.find((h) => h.id === hId);
-                triggerToast(`Przełączono na gospodarstwo: ${target?.code}`);
+                triggerToast(`Zalogowano do gospodarstwa: ${target?.code}`);
               }}
-              onCreateHousehold={async ({ code, name, memberName, avatarId, colorHex }) => {
+              onUpdatePin={async (hId, newPin) => {
+                commitDb(
+                  (prev) => ({
+                    ...prev,
+                    households: prev.households.map((h) =>
+                      h.id === hId ? { ...h, pin_hash: newPin } : h
+                    )
+                  }),
+                  `Zaktualizowano kod PIN domu`
+                );
+                if (supabaseClient) {
+                  await supabaseClient.from('households').update({ pin_hash: newPin }).eq('id', hId);
+                }
+                triggerToast('Zapisano nowy kod PIN dla Twojego domu!');
+              }}
+              onLogoutHousehold={() => {
+                handleLogoutHousehold();
+                setShowHouseholdGateModal(false);
+                triggerToast('Wylogowano z domu na tym urządzeniu.');
+              }}
+              onCreateHousehold={async ({ code, name, pin, memberName, avatarId, colorHex }) => {
                 const newHouseholdId = generateId();
                 const newMemberId = generateId();
                 const newListId = generateId();
@@ -2937,7 +3114,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   id: newHouseholdId,
                   code: code.toUpperCase(),
                   name,
-                  pin_hash: '',
+                  pin_hash: pin || '',
                   created_at: new Date().toISOString()
                 };
                 const firstMember = {
@@ -2977,6 +3154,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   await supabaseClient.from('product_catalog').insert(seededCatalog);
                 }
 
+                unlockHouseholdOnDevice(newHouseholdId);
                 setSession({
                   householdId: newHouseholdId,
                   memberId: newMemberId,
@@ -3360,33 +3538,74 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
     }
 
     function HouseholdGateModal({
-      db, currentHousehold, onClose, onSelectHousehold, onCreateHousehold, bgCard, bgSubtle, btnTactile, borderPixel
+      isStandaloneGate = false,
+      db,
+      unlockedHouseholds = [],
+      currentHousehold,
+      onClose,
+      onSelectHousehold,
+      onUpdatePin,
+      onLogoutHousehold,
+      onCreateHousehold,
+      bgCard,
+      bgSubtle,
+      btnTactile,
+      borderPixel
     }) {
       const [tab, setTab] = useState('switch');
       const [codeQuery, setCodeQuery] = useState('');
+      const [pinQuery, setPinQuery] = useState('');
       const [errorMsg, setErrorMsg] = useState('');
-      const [newCode, setNewCode] = useState('DOM-NOWY');
-      const [newName, setNewName] = useState('Nasz Dom');
-      const [memberName, setMemberName] = useState('Kapitan');
+
+      // New household creation fields
+      const [newCode, setNewCode] = useState('');
+      const [newName, setNewName] = useState('');
+      const [newPin, setNewPin] = useState('');
+      const [memberName, setMemberName] = useState('');
       const [avatarId, setAvatarId] = useState('knight');
       const [colorHex, setColorHex] = useState('#3b82f6');
 
+      // Current household PIN update field
+      const [editPinValue, setEditPinValue] = useState(currentHousehold?.pin_hash || '');
+
       const handleJoinByCode = (e) => {
         e.preventDefault();
-        const clean = codeQuery.trim().toUpperCase();
-        const match = db.households.find((h) => h.code.toUpperCase() === clean);
-        if (!match) {
-          setErrorMsg(`Nie znaleziono gospodarstwa o kodzie "${clean}". Utwórz je w zakładce obok!`);
+        setErrorMsg('');
+        const cleanCode = codeQuery.trim().toUpperCase();
+        const cleanPin = pinQuery.trim();
+
+        if (!cleanCode) {
+          setErrorMsg('Wpisz Kod Domu (np. DOM-GLOWNY).');
           return;
         }
+
+        const match = db.households.find((h) => h.code.toUpperCase() === cleanCode);
+        if (!match) {
+          setErrorMsg(`Nie znaleziono domu o kodzie "${cleanCode}". Sprawdź pisownię lub utwórz nowy dom.`);
+          return;
+        }
+
+        const requiredPin = (match.pin_hash || '').trim();
+        if (requiredPin && requiredPin !== cleanPin) {
+          setErrorMsg('Nieprawidłowy kod PIN dla tego gospodarstwa!');
+          return;
+        }
+
         onSelectHousehold(match.id);
       };
 
       const handleCreateSubmit = (e) => {
         e.preventDefault();
+        setErrorMsg('');
         const cleanCode = newCode.trim().toUpperCase().replace(/\s+/g, '-');
+        const cleanPin = newPin.trim();
+
         if (!cleanCode || !newName.trim() || !memberName.trim()) {
-          setErrorMsg('Wypełnij kod domu, nazwę oraz imię pierwszego domownika.');
+          setErrorMsg('Wypełnij Kod Domu, Nazwę Domu oraz swój Nick.');
+          return;
+        }
+        if (cleanPin.length < 4) {
+          setErrorMsg('Ustaw co najmniej 4-znakowy kod PIN chroniący dostęp do Waszego domu.');
           return;
         }
         if (db.households.some((h) => h.code.toUpperCase() === cleanCode)) {
@@ -3396,25 +3615,39 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
         onCreateHousehold({
           code: cleanCode,
           name: newName.trim(),
+          pin: cleanPin,
           memberName: memberName.trim(),
           avatarId,
           colorHex
         });
       };
 
+      const wrapperClass = isStandaloneGate
+        ? 'w-full max-w-lg'
+        : 'fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3';
+
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
-          <div className={`w-full max-w-lg ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-6 max-h-[90vh] overflow-y-auto`}>
+        <div className={wrapperClass}>
+          <div className={`w-full max-w-lg ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-6 max-h-[92vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <Home className="w-5 h-5 text-[#f59e0b]" />
-                <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'Silkscreen', cursive" }}>
-                  BRAMA GOSPODARSTWA (MULTI-TENANT)
-                </h3>
+                <div className="w-8 h-8 bg-[#f59e0b] border-2 border-[#1e1e24] flex items-center justify-center shrink-0">
+                  <Shield className="w-4 h-4 text-[#1e1e24]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'Silkscreen', cursive" }}>
+                    {isStandaloneGate ? 'PIXELCART — LOGOWANIE DO DOMU' : 'DOSTĘP I KOD PIN DOMU'}
+                  </h3>
+                  <p className="text-[11px] opacity-75">
+                    Prywatna przestrzeń rodziny chroniona Kodem Domu i PIN-em
+                  </p>
+                </div>
               </div>
-              <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
-                <X className="w-4 h-4" />
-              </button>
+              {!isStandaloneGate && (
+                <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
@@ -3423,89 +3656,165 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 onClick={() => { setTab('switch'); setErrorMsg(''); }}
                 className={`py-2 text-xs font-bold uppercase ${borderPixel} ${tab === 'switch' ? 'bg-[#f59e0b] text-[#1e1e24]' : bgSubtle}`}
               >
-                Wejdź kodem / Przełącz
+                🔑 Zaloguj Kodem i PIN
               </button>
               <button
                 type="button"
                 onClick={() => { setTab('create'); setErrorMsg(''); }}
                 className={`py-2 text-xs font-bold uppercase ${borderPixel} ${tab === 'create' ? 'bg-[#10b981] text-[#1e1e24]' : bgSubtle}`}
               >
-                + Utwórz Nowy Dom
+                + Załóż Nowy Dom
               </button>
             </div>
 
             {errorMsg && (
-              <div className="mb-3 p-2.5 bg-[#fef08a] text-[#dc2626] border-2 border-[#1e1e24] text-xs font-bold">
-                {errorMsg}
+              <div className="mb-3 p-2.5 bg-[#fef08a] text-[#dc2626] border-2 border-[#1e1e24] text-xs font-bold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
             {tab === 'switch' ? (
               <div className="space-y-4">
-                <form onSubmit={handleJoinByCode} className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Wpisz kod np. DOM-GLOWNY..."
-                    value={codeQuery}
-                    onChange={(e) => setCodeQuery(e.target.value.toUpperCase())}
-                    className={`flex-1 px-3 py-2 text-sm font-bold uppercase ${bgSubtle} ${borderPixel}`}
-                  />
-                  <button type="submit" className={`px-4 py-2 bg-[#3b82f6] text-white text-xs font-bold ${btnTactile}`}>
-                    WEJDŹ
+                <form onSubmit={handleJoinByCode} className={`p-3.5 ${bgSubtle} ${borderPixel} space-y-3`}>
+                  <div className="text-xs font-bold uppercase">
+                    Wpisz dane dostępowe Twojej rodziny:
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase mb-1">
+                        Kod Domu (np. DOM-GLOWNY)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="DOM-..."
+                        value={codeQuery}
+                        onChange={(e) => setCodeQuery(e.target.value.toUpperCase())}
+                        className={`w-full px-3 py-2 text-sm font-bold uppercase ${bgCard} ${borderPixel}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase mb-1">
+                        Kod PIN Domu
+                      </label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        placeholder="••••"
+                        value={pinQuery}
+                        onChange={(e) => setPinQuery(e.target.value)}
+                        className={`w-full px-3 py-2 text-sm font-bold ${bgCard} ${borderPixel}`}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className={`w-full py-2.5 bg-[#3b82f6] text-white text-xs font-bold uppercase ${btnTactile}`}
+                  >
+                    Odblokuj i Otwórz Dom
                   </button>
                 </form>
 
-                <div className="space-y-2">
-                  {db.households.map((h) => {
-                    const members = db.household_members.filter((m) => m.household_id === h.id);
-                    const listsCount = db.lists.filter((l) => l.household_id === h.id).length;
-                    const isCurrent = h.id === currentHousehold?.id;
-
-                    return (
-                      <div
-                        key={h.id}
-                        onClick={() => onSelectHousehold(h.id)}
-                        className={`p-3 cursor-pointer ${borderPixel} flex items-center justify-between ${
-                          isCurrent ? 'bg-[#3b82f6] text-white' : `${bgSubtle} hover:opacity-90`
-                        }`}
+                {/* Active household PIN settings (only visible when logged in) */}
+                {currentHousehold && (
+                  <div className={`p-3.5 ${bgSubtle} ${borderPixel} space-y-2.5`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase">
+                        Акtywny Dom: <strong className="text-[#3b82f6]">{currentHousehold.code}</strong> ({currentHousehold.name})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={onLogoutHousehold}
+                        className="px-2 py-1 bg-[#ef4444] text-white text-[11px] font-bold border border-[#1e1e24]"
                       >
-                        <div>
+                        Wyloguj z tego domu
+                      </button>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#1e1e24]/20 flex items-end gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold uppercase mb-1">
+                          Zmień / Ustaw kod PIN dla domu {currentHousehold.code}:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="np. 1234"
+                          value={editPinValue}
+                          onChange={(e) => setEditPinValue(e.target.value)}
+                          className={`w-full px-2.5 py-1.5 text-xs font-bold ${bgCard} ${borderPixel}`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onUpdatePin(currentHousehold.id, editPinValue.trim())}
+                        className={`px-3 py-1.5 bg-[#10b981] text-[#1e1e24] text-xs font-bold ${btnTactile}`}
+                      >
+                        Zapisz PIN
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Only show households that were already unlocked with PIN on this device */}
+                {unlockedHouseholds.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold uppercase opacity-75">
+                      Zapamiętane domy na tym urządzeniu ({unlockedHouseholds.length}):
+                    </div>
+                    {unlockedHouseholds.map((h) => {
+                      const isCurrent = h.id === currentHousehold?.id;
+                      return (
+                        <div
+                          key={h.id}
+                          onClick={() => onSelectHousehold(h.id)}
+                          className={`p-2.5 cursor-pointer ${borderPixel} flex items-center justify-between ${
+                            isCurrent ? 'bg-[#3b82f6] text-white font-bold' : bgSubtle
+                          }`}
+                        >
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-xs px-1.5 py-0.5 bg-[#1e1e24] text-[#f59e0b]" style={{ fontFamily: "'Silkscreen', cursive" }}>
-                              {h.code}
+                              🔒 {h.code}
                             </span>
-                            <span className="font-bold text-sm">{h.name}</span>
+                            <span className="text-xs font-bold">{h.name}</span>
                           </div>
-                          <div className="text-[11px] opacity-80 mt-1">
-                            Domownicy: {members.map((m) => m.display_name).join(', ')} • Listy: {listsCount}
-                          </div>
+                          <span className="text-[10px] uppercase px-1.5 py-0.5 bg-black/20">
+                            {isCurrent ? 'AKTYWNY' : 'PRZEŁĄCZ'}
+                          </span>
                         </div>
-                        <div className="flex -space-x-1">
-                          {members.map((m) => (
-                            <PixelAvatar key={m.id} avatarId={m.avatar_id} colorHex={m.color_hex} size={28} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
               <form onSubmit={handleCreateSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs font-bold uppercase mb-1">Unikalny Kod Domu</label>
+                    <label className="block text-xs font-bold uppercase mb-1">Kod Domu</label>
                     <input
                       type="text"
+                      placeholder="np. DOM-MAREK"
                       value={newCode}
                       onChange={(e) => setNewCode(e.target.value.toUpperCase())}
                       className={`w-full px-3 py-2 text-sm font-bold uppercase ${bgSubtle} ${borderPixel}`}
                     />
                   </div>
                   <div>
+                    <label className="block text-xs font-bold uppercase mb-1">Kod PIN (min. 4 zn.)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="np. 2580"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value)}
+                      className={`w-full px-3 py-2 text-sm font-bold ${bgSubtle} ${borderPixel}`}
+                    />
+                  </div>
+                  <div>
                     <label className="block text-xs font-bold uppercase mb-1">Nazwa Domu</label>
                     <input
                       type="text"
+                      placeholder="np. Nasz Dom"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       className={`w-full px-3 py-2 text-sm font-bold ${bgSubtle} ${borderPixel}`}
@@ -3517,6 +3826,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   <label className="block text-xs font-bold uppercase mb-1">Twój Nick (Pierwszy Domownik)</label>
                   <input
                     type="text"
+                    placeholder="np. Zdrawko"
                     value={memberName}
                     onChange={(e) => setMemberName(e.target.value)}
                     className={`w-full px-3 py-2 text-sm font-bold ${bgSubtle} ${borderPixel}`}
@@ -3551,7 +3861,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   type="submit"
                   className={`w-full py-2.5 bg-[#10b981] text-[#1e1e24] font-bold text-xs uppercase ${btnTactile}`}
                 >
-                  Utwórz Gospodarstwo + Załaduj Słownik {DEFAULT_POLISH_CATALOG.length} Produktów
+                  Utwórz Zabezpieczony Dom + Załaduj Słownik {DEFAULT_POLISH_CATALOG.length} Produktów
                 </button>
               </form>
             )}

@@ -2178,7 +2178,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             </aside>
 
             {/* MAIN LIST WORKSPACE */}
-            <main className="flex-1 flex flex-col min-w-0 pb-48 lg:pb-12 overflow-y-auto">
+            <main className="flex-1 flex flex-col min-w-0 pb-36 lg:pb-12 overflow-y-auto">
               <div className="px-3 sm:px-6 pt-3 pb-2">
                 {/* Mobile Horizontal List Switcher Pills */}
                 <div className="lg:hidden mb-2.5">
@@ -2777,16 +2777,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                       className={`w-full px-2 py-1 text-xs font-bold ${bgSubtle} border border-[#1e1e24]`}
                     />
                   </div>
-                </div>
-              )}
-
-              {activeList.list_type === 'shopping' && (
-                <div className="bg-[#1e1e24] text-[#f4f1ea] px-3 py-1 text-[11px] flex items-center justify-between border-t-2 border-[#1e1e24]">
-                  <span>W koszyku: <strong className="text-[#10b981]">{totals.inBasket} zł</strong></span>
-                  <span>|</span>
-                  <span>Do kupienia: <strong className="text-[#f59e0b]">{totals.toBuy} zł</strong></span>
-                  <span>|</span>
-                  <span>Suma: <strong>{totals.total} zł</strong></span>
                 </div>
               )}
 

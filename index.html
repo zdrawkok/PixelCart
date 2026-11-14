@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>PixelCart — 8-Bit Household Shopping & Task Manager</title>
 
-  <!-- Google Fonts: VT323 (pixel, pełne latin-ext) + JetBrains Mono -->
+  <!-- Google Fonts: JetBrains Mono (full Polish latin-ext) + Press Start 2P (full Polish latin-ext) + Silkscreen -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&family=VT323&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -43,13 +43,13 @@
       background-color: #f4f1ea;
       color: #1e1e24;
     }
-    /* Pixel font (VT323) - wyrównanie wielkości do JetBrains Mono, pełne polskie znaki */
-    [style*="VT323"] {
-      font-size-adjust: 0.5;
-      letter-spacing: 0.03em;
+    .font-pixel-brand {
+      font-family: 'Silkscreen', 'JetBrains Mono', monospace;
     }
-    /* Tailwind font-mono nadpisywał JetBrains Mono fontem systemowym telefonu */
-    .font-mono {
+    .font-pixel-pl {
+      font-family: 'Press Start 2P', 'JetBrains Mono', monospace;
+    }
+    .font-mono-pl {
       font-family: 'JetBrains Mono', monospace !important;
     }
     /* Custom Retro Scrollbar */
@@ -76,8 +76,8 @@
   ========================================================================= -->
   <script>
     window.PIXELCART_SUPABASE_CONFIG = {
-      url: "",     // np. "https://xyzcompany.supabase.co"
-      anonKey: ""  // np. "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      url: "https://bisictxxpmlmarilpqoa.supabase.co",     // np. "https://xyzcompany.supabase.co"
+      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpc2ljdHh4cG1sbWFyaWxwcW9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1ODUzNDEsImV4cCI6MjExMDE2MTM0MX0.rqcqiVYyHWXl31hqM4rlfG5wHjQeQzCXE8cwelDorkE"  // np. "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     };
   </script>
 
@@ -91,14 +91,10 @@
       Plus,
       Trash2,
       Edit3,
-      Users,
       Share2,
       Database,
       Sun,
       Moon,
-      Search,
-      ChevronRight,
-      ChevronDown,
       Copy,
       Check,
       AlertTriangle,
@@ -110,17 +106,13 @@
       Shield,
       SlidersHorizontal,
       X,
-      ArrowUpDown,
       Layers,
       Tag,
       UserPlus,
       KeyRound,
-      Home,
-      Zap,
       Volume2,
       VolumeX,
-      Cloud,
-      CloudOff
+      Cloud
     } from 'lucide-react';
 
     // ============================================================================
@@ -988,7 +980,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
       const [soundEnabled, setSoundEnabled] = useState(true);
 
-      // Supabase Credentials State (from window.PIXELCART_SUPABASE_CONFIG or localStorage)
+      // Supabase Credentials State
       const [supaConfig, setSupaConfig] = useState(() => {
         const winCfg = window.PIXELCART_SUPABASE_CONFIG || {};
         if (winCfg.url && winCfg.anonKey) {
@@ -1042,7 +1034,11 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
         };
       });
 
-      // Unlocked Households on this device (Only houses unlocked via Code + PIN are visible)
+      useEffect(() => {
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+      }, [session]);
+
+      // Unlocked Households on this device
       const [unlockedIds, setUnlockedIds] = useState(() => {
         try {
           const saved = localStorage.getItem(UNLOCKED_KEY);
@@ -1076,7 +1072,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
       const channelRef = useRef(null);
       const [syncPulse, setSyncPulse] = useState(false);
-      const [lastSyncEvent, setLastSyncEvent] = useState('Tryb Lokalny (Gotowy na Supabase)');
+      const [lastSyncEvent, setLastSyncEvent] = useState('Tryb Lokalny');
 
       // Fetch full state from Supabase Cloud and seed if empty
       const fetchFromSupabase = useCallback(async () => {
@@ -1102,7 +1098,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             return;
           }
 
-          // If cloud DB is completely empty on first connect, seed initial demo households!
           if (!households || households.length === 0) {
             await supabaseClient.from('households').insert(INITIAL_DB_STATE.households);
             await supabaseClient.from('household_members').insert(INITIAL_DB_STATE.household_members);
@@ -1111,7 +1106,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             await supabaseClient.from('list_items').insert(INITIAL_DB_STATE.list_items);
             setDb(INITIAL_DB_STATE);
             setCloudConnected(true);
-            setLastSyncEvent('☁️ Zainicjalizowano bazę Supabase!');
+            setLastSyncEvent('☁️ Supabase Live');
             return;
           }
 
@@ -1126,7 +1121,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           setDb(nextState);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
           setCloudConnected(true);
-          setLastSyncEvent('☁️ Połączono z Supabase Realtime');
+          setLastSyncEvent('☁️ Supabase Live');
           setSyncPulse(true);
           setTimeout(() => setSyncPulse(false), 900);
         } catch (err) {
@@ -1135,7 +1130,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
         }
       }, [supabaseClient]);
 
-      // Subscribe to Supabase Realtime + BroadcastChannel fallback
       useEffect(() => {
         if (supabaseClient) {
           fetchFromSupabase();
@@ -1154,7 +1148,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           bc.onmessage = (event) => {
             if (event.data && event.data.type === 'DB_UPDATE') {
               setDb(event.data.payload);
-              setLastSyncEvent(event.data.description || 'Zsynchronizowano zmianę');
+              setLastSyncEvent(event.data.description || 'Zsynchronizowano');
               setSyncPulse(true);
               setTimeout(() => setSyncPulse(false), 1200);
             }
@@ -1164,7 +1158,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
         }
       }, [supabaseClient, fetchFromSupabase]);
 
-      const commitDb = useCallback((updater, description = 'Zaktualizowano listę') => {
+      const commitDb = useCallback((updater, description = 'Zaktualizowano') => {
         setDb((prev) => {
           const next = typeof updater === 'function' ? updater(prev) : updater;
           try {
@@ -1179,7 +1173,8 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           return next;
         });
       }, []);
-      // Derived Current Entities (Strictly isolated to unlocked household)
+
+      // Derived Current Entities
       const unlockedHouseholds = useMemo(
         () => db.households.filter((h) => unlockedIds.includes(h.id)),
         [db.households, unlockedIds]
@@ -1237,7 +1232,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
       // UI States
       const [groupByCategory, setGroupByCategory] = useState(true);
-      const [searchFilter, setSearchFilter] = useState('');
       const [itemName, setItemName] = useState('');
       const [itemQty, setItemQty] = useState('1');
       const [itemUnit, setItemUnit] = useState('szt.');
@@ -1414,7 +1408,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             list_items: [newItem, ...prev.list_items],
             product_catalog: updatedCatalog
           };
-        }, `${currentMember?.display_name || 'Domownik'} dodał(a): ${newItem.name}`);
+        }, `${currentMember?.display_name || 'Domownik'}: +${newItem.name}`);
 
         if (supabaseClient) {
           await supabaseClient.from('list_items').insert(newItem);
@@ -1441,7 +1435,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
               ? { ...item, quantity: newQty, unit_price: nextPrice }
               : item
           )
-        }), `Zwiększono ilość: ${existingItem.name} (${newQty} ${existingItem.unit})`);
+        }), `Zwiększono: ${existingItem.name} (${newQty} ${existingItem.unit})`);
 
         if (supabaseClient) {
           await supabaseClient
@@ -1478,7 +1472,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 }
               : item
           )
-        }), `Przywrócono z kupionych: ${existingItem.name}`);
+        }), `Przywrócono: ${existingItem.name}`);
 
         if (supabaseClient) {
           await supabaseClient
@@ -1518,7 +1512,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 : i
             )
           }),
-          `${currentMember?.display_name || 'Domownik'} ${nextChecked ? 'odhaczył(a)' : 'przywrócił(a)'}: ${item.name}`
+          `${currentMember?.display_name || 'Domownik'}: ${nextChecked ? '✓' : '↺'} ${item.name}`
         );
 
         if (supabaseClient) {
@@ -1571,7 +1565,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
               : prev.product_catalog;
 
           return { ...prev, list_items: nextItems, product_catalog: nextCatalog };
-        }, `Zaktualizowano pozycję: ${cleanName}`);
+        }, `Zaktualizowano: ${cleanName}`);
 
         if (supabaseClient) {
           await supabaseClient.from('list_items').update(patch).eq('id', editingItem.id);
@@ -1633,7 +1627,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             ...prev,
             list_items: prev.list_items.filter((i) => i.id !== itemId)
           }),
-          `Usunięto pozycję: ${target?.name || ''}`
+          `Usunięto: ${target?.name || ''}`
         );
         if (supabaseClient) {
           await supabaseClient.from('list_items').delete().eq('id', itemId);
@@ -1648,7 +1642,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             ...prev,
             list_items: prev.list_items.filter((i) => !(i.list_id === activeList.id && i.is_checked))
           }),
-          `Wyczyszczono kupione pozycje z listy: ${activeList.name}`
+          `Wyczyszczono kupione: ${activeList.name}`
         );
         if (supabaseClient) {
           await supabaseClient.from('list_items').delete().eq('list_id', activeList.id).eq('is_checked', true);
@@ -1656,52 +1650,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
         triggerToast('Usunięto wszystkie odhaczone pozycje.');
       };
 
-      const handleSimulateFamilyMemberAction = async () => {
-        if (!activeList || householdMembers.length === 0) return;
-        const otherMembers = householdMembers.filter((m) => m.id !== currentMember?.id);
-        const actor = otherMembers.length > 0 ? otherMembers[0] : currentMember;
-
-        const unchecked = activeListItems.filter((i) => !i.is_checked);
-        if (unchecked.length > 0) {
-          const randomItem = unchecked[Math.floor(Math.random() * unchecked.length)];
-          const nowIso = new Date().toISOString();
-          playPixelSound('check', soundEnabled);
-          commitDb(
-            (prev) => ({
-              ...prev,
-              list_items: prev.list_items.map((i) =>
-                i.id === randomItem.id
-                  ? { ...i, is_checked: true, checked_at: nowIso, checked_by: actor.id }
-                  : i
-              )
-            }),
-            `⚡ LIVE: ${actor.display_name} włożył(a) do koszyka "${randomItem.name}"!`
-          );
-          if (supabaseClient) {
-            await supabaseClient
-              .from('list_items')
-              .update({ is_checked: true, checked_at: nowIso, checked_by: actor.id })
-              .eq('id', randomItem.id);
-          }
-          triggerToast(`⚡ ${actor.display_name} właśnie odhaczył(a): ${randomItem.name}`);
-        } else {
-          triggerToast('Wszystkie pozycje na tej liście są już odhaczone!');
-        }
-      };
-
       // Live Basket Totals & Item Grouping
       const { uncheckedItems, checkedItems, totals } = useMemo(() => {
-        const query = searchFilter.trim().toLowerCase();
-        const filtered = query
-          ? activeListItems.filter(
-              (i) =>
-                i.name.toLowerCase().includes(query) ||
-                (i.category && i.category.toLowerCase().includes(query))
-            )
-          : activeListItems;
-
-        const unchecked = filtered.filter((i) => !i.is_checked);
-        const checked = filtered
+        const unchecked = activeListItems.filter((i) => !i.is_checked);
+        const checked = activeListItems
           .filter((i) => i.is_checked)
           .sort((a, b) => new Date(b.checked_at || 0) - new Date(a.checked_at || 0));
 
@@ -1723,7 +1675,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             total: (inBasketPLN + toBuyPLN).toFixed(2)
           }
         };
-      }, [activeListItems, searchFilter]);
+      }, [activeListItems]);
 
       const groupedUncheckedItems = useMemo(() => {
         if (!groupByCategory) {
@@ -1767,8 +1719,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       if (!currentHousehold) {
         return (
           <div
-            className={`min-h-screen flex flex-col items-center justify-center p-4 ${bgMain}`}
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className={`min-h-screen flex flex-col items-center justify-center p-4 ${bgMain} font-mono-pl`}
           >
             <div className="mb-4 flex items-center gap-2">
               <button
@@ -1838,7 +1789,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     lists: [...prev.lists, defaultShoppingList],
                     product_catalog: [...prev.product_catalog, ...seededCatalog]
                   }),
-                  `Utworzono nowe gospodarstwo: ${newHousehold.code}`
+                  `Utworzono: ${newHousehold.code}`
                 );
 
                 if (supabaseClient) {
@@ -1883,59 +1834,41 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
       return (
         <div
-          className={`min-h-screen flex flex-col ${bgMain} selection:bg-[#f59e0b] selection:text-[#1e1e24]`}
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          className={`min-h-screen flex flex-col ${bgMain} selection:bg-[#f59e0b] selection:text-[#1e1e24] font-mono-pl`}
         >
-          {/* TOP HOUSEHOLD BAR (jedna linia, h-8) */}
-          <div className="bg-[#1e1e24] text-[#f4f1ea] border-b-2 border-[#1e1e24] px-2.5 h-8 text-xs z-40 shrink-0">
-            <div className="max-w-[1440px] mx-auto h-full flex items-center justify-between gap-2 min-w-0 flex-nowrap">
-              <div className="flex items-center gap-1.5 min-w-0 flex-nowrap">
-                {/* Mobile: jeden zwięzły przycisk aktywnego domu */}
-                <button
-                  onClick={() => setShowHouseholdGateModal(true)}
-                  className="sm:hidden h-6 px-2 bg-[#f59e0b] text-[#1e1e24] font-bold flex items-center gap-1 min-w-0 max-w-[48vw]"
-                  title="Przełącz dom / Kod & PIN"
-                >
-                  <span className="shrink-0">🔒</span>
-                  <span className="truncate">{currentHousehold?.code}</span>
-                </button>
-
-                {/* Desktop / tablet: plakietka + odblokowane domy */}
-                <span
-                  className="hidden sm:flex h-6 bg-[#10b981] text-[#1e1e24] px-1.5 font-bold uppercase tracking-wider text-[11px] items-center gap-1 shrink-0"
-                  style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                >
-                  <Shield className="w-3 h-3" /> TWÓJ DOM
-                </span>
-                <div className="hidden sm:flex items-center gap-1.5 min-w-0">
-                  {unlockedHouseholds.map((h) => {
-                    const isSelected = h.id === currentHousehold?.id;
-                    return (
-                      <button
-                        key={h.id}
-                        onClick={() => {
-                          setSession((prev) => ({ ...prev, householdId: h.id }));
-                          setDuplicateGuard(null);
-                          triggerToast(`Przełączono na: ${h.code} (${h.name})`);
-                        }}
-                        className={`h-6 px-2 border font-bold transition-colors whitespace-nowrap ${
-                          isSelected
-                            ? 'bg-[#f59e0b] text-[#1e1e24] border-[#f59e0b]'
-                            : 'bg-[#27272a] text-[#e4e4e7] border-[#52525b] hover:bg-[#3f3f46]'
-                        }`}
-                      >
-                        🔒 {h.code}
-                      </button>
-                    );
-                  })}
-                </div>
+          {/* ====================================================================
+              1. SLIM 1-LINE TOP SECURITY BAR (No "Symuluj Live", No "SQL" clutter)
+          ==================================================================== */}
+          <div className="bg-[#1e1e24] text-[#f4f1ea] border-b-2 border-[#1e1e24] px-2.5 py-1 text-[11px] z-40">
+            <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
+                {unlockedHouseholds.map((h) => {
+                  const isSelected = h.id === currentHousehold?.id;
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => {
+                        setSession((prev) => ({ ...prev, householdId: h.id }));
+                        setDuplicateGuard(null);
+                        triggerToast(`Przełączono na: ${h.code} (${h.name})`);
+                      }}
+                      className={`px-2 py-0.5 border font-bold shrink-0 transition-colors ${
+                        isSelected
+                          ? 'bg-[#f59e0b] text-[#1e1e24] border-[#f59e0b]'
+                          : 'bg-[#27272a] text-[#e4e4e7] border-[#52525b] hover:bg-[#3f3f46]'
+                      }`}
+                    >
+                      🔒 {h.code}
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => setShowHouseholdGateModal(true)}
-                  className="h-6 px-2 bg-[#3b82f6] text-white font-bold hover:bg-[#2563eb] flex items-center gap-1 whitespace-nowrap"
-                  title="Kod & PIN / przełącz dom"
+                  className="px-2 py-0.5 bg-[#3b82f6] text-white font-bold hover:bg-[#2563eb] flex items-center gap-1"
+                  title="Zaloguj do innego domu kodem PIN lub zmień PIN"
                 >
                   <KeyRound className="w-3 h-3" />
                   <span>PIN</span>
@@ -1945,126 +1878,105 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     handleLogoutHousehold();
                     triggerToast('Wylogowano z gospodarstwa na tym urządzeniu.');
                   }}
-                  className="h-6 px-2 bg-[#ef4444] text-white font-bold hover:bg-[#dc2626] flex items-center gap-1 whitespace-nowrap"
+                  className="px-2 py-0.5 bg-[#ef4444] text-white font-bold hover:bg-[#dc2626] flex items-center gap-1"
                   title="Wyloguj z bieżącego domu na tym urządzeniu"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>Wyloguj</span>
                 </button>
-                {/* SQL & Supabase: tylko na desktopie (na telefonie jest w bocznym menu) */}
-                <button
-                  onClick={() => setShowSqlModal(true)}
-                  className={`hidden lg:flex h-6 px-2 font-bold items-center gap-1 border whitespace-nowrap ${
-                    cloudConnected
-                      ? 'bg-[#10b981] text-[#1e1e24] border-[#10b981]'
-                      : 'bg-[#27272a] hover:bg-[#3f3f46] text-[#fde68a] border-[#52525b]'
-                  }`}
-                >
-                  {cloudConnected ? <Cloud className="w-3 h-3" /> : <Database className="w-3 h-3" />}
-                  <span>{cloudConnected ? 'Supabase: POŁĄCZONO' : 'SQL & Supabase'}</span>
-                </button>
               </div>
             </div>
           </div>
 
-          {/* COMPACT APP HEADER */}
-          <header className={`sticky top-0 z-30 ${bgCard} border-b-2 border-[#1e1e24] px-3 py-2.5`}>
+          {/* ====================================================================
+              2. COMPACT APP HEADER (Clean on Mobile: Menu + PIXELCART + Avatar + Dict + Theme)
+          ==================================================================== */}
+          <header className={`sticky top-0 z-30 ${bgCard} border-b-2 border-[#1e1e24] px-2.5 sm:px-4 py-2`}>
             <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
+              {/* Left: Mobile Drawer Button + Full Uncut Brand Name + Sync Status */}
+              <div className="flex items-center gap-2 min-w-0">
                 <button
                   onClick={() => setShowMobileListsDrawer(true)}
-                  className={`lg:hidden p-2 ${bgSubtle} ${btnTactile}`}
-                  aria-label="Otwórz listy i domowników"
+                  className={`lg:hidden p-1.5 ${bgSubtle} ${btnTactile} shrink-0`}
+                  aria-label="Otwórz listy i menu"
                 >
-                  <Layers className="w-5 h-5" />
+                  <Layers className="w-4 h-4" />
                 </button>
 
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="hidden sm:flex w-9 h-9 bg-[#f59e0b] border-2 border-[#1e1e24] shadow-[2px_2px_0px_0px_#1e1e24] items-center justify-center shrink-0">
-                    <ShoppingBag className="w-5 h-5 text-[#1e1e24]" />
+                <div className="hidden sm:flex w-8 h-8 bg-[#f59e0b] border-2 border-[#1e1e24] shadow-[2px_2px_0px_0px_#1e1e24] items-center justify-center shrink-0">
+                  <ShoppingBag className="w-4 h-4 text-[#1e1e24]" />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="font-pixel-brand text-xs sm:text-base font-bold tracking-tight whitespace-nowrap">
+                      PIXELCART
+                    </h1>
+                    <span
+                      className={`w-2 h-2 inline-block border border-[#1e1e24] shrink-0 ${
+                        syncPulse ? 'bg-[#f59e0b] scale-125' : cloudConnected ? 'bg-[#10b981]' : 'bg-[#3b82f6]'
+                      } transition-transform`}
+                      title={lastSyncEvent}
+                    />
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <h1
-                        className="text-xl sm:text-lg font-bold tracking-tight whitespace-nowrap shrink-0"
-                        style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                      >
-                        PIXELCART
-                      </h1>
-                      {/* Mobile: tylko mała kropka statusu chmury */}
-                      <span
-                        className={`sm:hidden w-2.5 h-2.5 inline-block border border-[#1e1e24] shrink-0 ${
-                          syncPulse ? 'bg-[#f59e0b] scale-125' : 'bg-[#10b981]'
-                        } transition-transform`}
-                        title={lastSyncEvent}
-                      />
-                      <button
-                        onClick={() => setShowHouseholdGateModal(true)}
-                        className="hidden sm:inline-flex px-1.5 py-0.5 text-[11px] font-bold bg-[#3b82f6] text-white border border-[#1e1e24] hover:opacity-90 truncate"
-                        style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                      >
-                        {currentHousehold?.code}
-                      </button>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-1.5 text-[11px] opacity-80 truncate">
-                      <span
-                        className={`w-2 h-2 inline-block border border-[#1e1e24] ${
-                          syncPulse ? 'bg-[#f59e0b] scale-125' : 'bg-[#10b981]'
-                        } transition-transform`}
-                      />
-                      <span className="truncate">{lastSyncEvent}</span>
-                    </div>
+                  <div className="hidden sm:flex items-center gap-1.5 text-[11px] opacity-75 truncate">
+                    <span>{currentHousehold?.name}</span>
+                    <span>•</span>
+                    <span className="truncate">{lastSyncEvent}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <div className="flex items-center gap-1">
-                  <div className="hidden sm:flex items-center gap-1 mr-1">
-                    {householdMembers.map((member) => {
-                      const isActive = member.id === currentMember?.id;
-                      return (
-                        <button
-                          key={member.id}
-                          onClick={() => {
-                            setSession((prev) => ({ ...prev, memberId: member.id }));
-                            triggerToast(`Aktywny profil: ${member.display_name}`);
-                          }}
-                          className={`relative p-0.5 transition-transform ${
-                            isActive ? 'ring-2 ring-[#f59e0b] -translate-y-0.5' : 'opacity-65 hover:opacity-100'
-                          }`}
-                          title={`Przełącz na: ${member.display_name}`}
-                        >
-                          <PixelAvatar avatarId={member.avatar_id} colorHex={member.color_hex} size={30} />
-                        </button>
-                      );
-                    })}
-                    {householdMembers.length < 5 && (
+              {/* Right: Active Avatar Switcher + Dictionary + Export (Desktop) + Theme */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Desktop all avatars strip */}
+                <div className="hidden sm:flex items-center gap-1 mr-1">
+                  {householdMembers.map((member) => {
+                    const isActive = member.id === currentMember?.id;
+                    return (
                       <button
-                        onClick={() => setShowAddMemberModal(true)}
-                        className={`w-[30px] h-[30px] flex items-center justify-center ${bgSubtle} border-2 border-dashed border-[#1e1e24] hover:bg-[#f59e0b] hover:text-[#1e1e24] text-xs font-bold`}
-                        title="Dodaj domownika (maks. 5)"
+                        key={member.id}
+                        onClick={() => {
+                          setSession((prev) => ({ ...prev, memberId: member.id }));
+                          triggerToast(`Aktywny profil: ${member.display_name}`);
+                        }}
+                        className={`relative p-0.5 transition-transform ${
+                          isActive ? 'ring-2 ring-[#f59e0b] -translate-y-0.5' : 'opacity-65 hover:opacity-100'
+                        }`}
+                        title={`Przełącz na: ${member.display_name}`}
                       >
-                        +
+                        <PixelAvatar avatarId={member.avatar_id} colorHex={member.color_hex} size={28} />
                       </button>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => setShowAddMemberModal(true)}
-                    className={`sm:hidden flex items-center justify-center w-9 h-9 ${bgSubtle} ${btnTactile}`}
-                    aria-label={`Domownicy (aktywny: ${currentMember?.display_name || ''})`}
-                    title={currentMember?.display_name}
-                  >
-                    {currentMember && (
-                      <PixelAvatar avatarId={currentMember.avatar_id} colorHex={currentMember.color_hex} size={28} />
-                    )}
-                  </button>
+                    );
+                  })}
+                  {householdMembers.length < 5 && (
+                    <button
+                      onClick={() => setShowAddMemberModal(true)}
+                      className={`w-[28px] h-[28px] flex items-center justify-center ${bgSubtle} border-2 border-dashed border-[#1e1e24] hover:bg-[#f59e0b] hover:text-[#1e1e24] text-xs font-bold`}
+                      title="Dodaj domownika (maks. 5)"
+                    >
+                      +
+                    </button>
+                  )}
                 </div>
+
+                {/* Mobile compact current avatar button */}
+                <button
+                  onClick={() => setShowAddMemberModal(true)}
+                  className={`sm:hidden flex items-center gap-1 px-1.5 py-1 ${bgSubtle} ${btnTactile}`}
+                  title="Zmień lub dodaj domownika"
+                >
+                  {currentMember && (
+                    <PixelAvatar avatarId={currentMember.avatar_id} colorHex={currentMember.color_hex} size={22} />
+                  )}
+                  <span className="text-[11px] font-bold max-w-[58px] truncate">
+                    {currentMember?.display_name}
+                  </span>
+                </button>
 
                 <button
                   onClick={() => setShowDictionaryModal(true)}
-                  className={`p-2 ${bgSubtle} ${btnTactile}`}
+                  className={`p-1.5 sm:p-2 ${bgSubtle} ${btnTactile}`}
                   title={`Słownik produktów gospodarstwa (${householdCatalog.length})`}
                 >
                   <BookOpen className="w-4 h-4" />
@@ -2080,14 +1992,14 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
                 <button
                   onClick={() => setSoundEnabled((prev) => !prev)}
-                  className={`hidden sm:inline-flex p-2 ${bgSubtle} ${btnTactile}`}
+                  className={`hidden md:inline-flex p-2 ${bgSubtle} ${btnTactile}`}
                 >
                   {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </button>
 
                 <button
                   onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
-                  className={`p-2 ${bgSubtle} ${btnTactile}`}
+                  className={`p-1.5 sm:p-2 ${bgSubtle} ${btnTactile}`}
                 >
                   {isDark ? <Sun className="w-4 h-4 text-[#fde68a]" /> : <Moon className="w-4 h-4" />}
                 </button>
@@ -2101,10 +2013,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             <aside className={`hidden lg:flex lg:w-[330px] shrink-0 flex-col border-r-2 border-[#1e1e24] ${bgCard} p-4 gap-5`}>
               <div className={`p-3 ${bgSubtle} ${borderPixel} ${shadowPixel}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span
-                    className="text-xs font-bold uppercase tracking-wider text-[#f59e0b] bg-[#1e1e24] px-2 py-0.5"
-                    style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                  >
+                  <span className="font-pixel-brand text-xs font-bold uppercase tracking-wider text-[#f59e0b] bg-[#1e1e24] px-2 py-0.5">
                     {currentHousehold?.code}
                   </span>
                   <button
@@ -2173,10 +2082,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-2">
-                  <h2
-                    className="text-xs font-bold uppercase tracking-wider"
-                    style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                  >
+                  <h2 className="font-mono-pl text-xs font-extrabold uppercase tracking-wider">
                     TWOJE LISTY ({householdLists.length})
                   </h2>
                   <button
@@ -2238,10 +2144,9 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <span
-                            className={`px-2 py-0.5 text-xs font-bold border-2 border-[#1e1e24] ${
+                            className={`font-pixel-brand px-2 py-0.5 text-xs font-bold border-2 border-[#1e1e24] ${
                               uncheckedCount > 0 ? 'bg-[#f59e0b] text-[#1e1e24]' : 'bg-[#10b981] text-[#1e1e24]'
                             }`}
-                            style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
                           >
                             {uncheckedCount}
                           </span>
@@ -2261,17 +2166,19 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   <span>Słownik ({householdCatalog.length})</span>
                 </button>
                 <button
-                  onClick={() => setShowExportModal(true)}
-                  className={`px-2.5 py-2 text-xs font-bold ${bgSubtle} ${btnTactile} flex items-center justify-center gap-1.5`}
+                  onClick={() => setShowSqlModal(true)}
+                  className={`px-2.5 py-2 text-xs font-bold ${
+                    cloudConnected ? 'bg-[#10b981] text-[#1e1e24]' : bgSubtle
+                  } ${btnTactile} flex items-center justify-center gap-1.5`}
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Udostępnij</span>
+                  <Database className="w-3.5 h-3.5" />
+                  <span>{cloudConnected ? 'Supabase OK' : 'Supabase'}</span>
                 </button>
               </div>
             </aside>
 
             {/* MAIN LIST WORKSPACE */}
-            <main className="flex-1 flex flex-col min-w-0 pb-40 lg:pb-12 overflow-y-auto">
+            <main className="flex-1 flex flex-col min-w-0 pb-48 lg:pb-12 overflow-y-auto">
               <div className="px-3 sm:px-6 pt-3 pb-2">
                 {/* Mobile Horizontal List Switcher Pills */}
                 <div className="lg:hidden mb-2.5">
@@ -2309,10 +2216,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                         >
                           <span>{list.list_type === 'shopping' ? '🛒' : '☑️'}</span>
                           <span className="whitespace-nowrap">{list.name}</span>
-                          <span
-                            className="px-1.5 py-0.5 bg-[#1e1e24] text-[#f59e0b] text-[10px] leading-none"
-                            style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                          >
+                          <span className="font-pixel-brand px-1.5 py-0.5 bg-[#1e1e24] text-[#f59e0b] text-[10px] leading-none">
                             {uncheckedCount}
                           </span>
                         </button>
@@ -2327,68 +2231,57 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   </div>
                 </div>
 
+                {/* ==============================================================
+                    ACTIVE LIST HEADER CARD (Aligned h-7 Badges + Full Polish Title)
+                ============================================================== */}
                 {activeList ? (
                   <div className={`p-3 sm:p-4 ${bgCard} ${borderPixel} ${shadowPixel} flex flex-col gap-2.5`}>
                     <div className="flex items-center justify-between gap-1.5 flex-wrap">
                       <span
-                        className={`h-7 inline-flex items-center px-2 text-sm font-bold uppercase border border-[#1e1e24] whitespace-nowrap ${
+                        className={`h-7 px-2 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold uppercase border-2 border-[#1e1e24] leading-none ${
                           activeList.list_type === 'shopping'
                             ? 'bg-[#f59e0b] text-[#1e1e24]'
                             : 'bg-[#8b5cf6] text-white'
                         }`}
-                        style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
                       >
-                        {activeList.list_type === 'shopping' ? (
-                          <>
-                            <span className="sm:hidden">🛒 ZAKUPY</span>
-                            <span className="hidden sm:inline">🛒 LISTA ZAKUPOWA</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="sm:hidden">☑️ ZADANIA</span>
-                            <span className="hidden sm:inline">☑️ LISTA ZADAŃ / PAKOWANIE</span>
-                          </>
-                        )}
+                        <span>{activeList.list_type === 'shopping' ? '🛒' : '☑️'}</span>
+                        <span>{activeList.list_type === 'shopping' ? 'ZAKUPY' : 'ZADANIA'}</span>
                       </span>
 
                       <div className="flex items-center gap-1.5 ml-auto">
                         <button
                           type="button"
                           onClick={() => setEditingList(activeList)}
-                          className={`h-7 px-2 text-[11px] font-bold ${bgSubtle} ${btnTactile} inline-flex items-center gap-1`}
+                          className={`h-7 px-2 text-[11px] font-bold ${bgSubtle} ${btnTactile} inline-flex items-center gap-1 leading-none`}
                         >
-                          <Edit3 className="w-3.5 h-3.5 shrink-0" />
+                          <Edit3 className="w-3 h-3 shrink-0" />
                           <span>Edytuj</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setGroupByCategory((prev) => !prev)}
-                          className={`h-7 px-2 text-[11px] font-bold whitespace-nowrap ${
+                          className={`h-7 px-2 text-[11px] font-bold ${
                             groupByCategory ? 'bg-[#10b981] text-[#1e1e24]' : bgSubtle
-                          } ${btnTactile} inline-flex items-center gap-1`}
+                          } ${btnTactile} inline-flex items-center gap-1 leading-none`}
                         >
-                          <Tag className="w-3.5 h-3.5 shrink-0" />
+                          <Tag className="w-3 h-3 shrink-0" />
                           <span>{groupByCategory ? 'Alejki: WŁ' : 'Alejki: WYŁ'}</span>
                         </button>
 
-                        {/* Eksport tekstu - na telefonie przeniesiony z nagłówka */}
                         <button
                           type="button"
                           onClick={() => setShowExportModal(true)}
-                          className={`sm:hidden h-7 w-7 justify-center ${bgSubtle} ${btnTactile} inline-flex items-center`}
-                          aria-label="Eksportuj listę jako tekst"
-                          title="Tekst / Udostępnij"
+                          className={`sm:hidden h-7 px-2 text-[11px] font-bold ${bgSubtle} ${btnTactile} inline-flex items-center gap-1 leading-none`}
+                          title="Udostępnij / Eksportuj tekst"
                         >
-                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          <Share2 className="w-3 h-3 shrink-0" />
                         </button>
                       </div>
                     </div>
 
-                    <h2
-                      className="text-sm sm:text-lg lg:text-xl font-bold leading-snug break-words"
-                      style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                    >
+                    {/* Full Polish diacritics supported via JetBrains Mono ExtraBold */}
+                    <h2 className="font-mono-pl text-base sm:text-xl font-extrabold tracking-tight leading-snug break-words">
                       {activeList.name}
                     </h2>
 
@@ -2426,7 +2319,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 ) : (
                   <div className={`p-8 text-center ${bgCard} ${borderPixel} ${shadowPixel}`}>
                     <div className="text-2xl mb-2">🗂️</div>
-                    <div className="text-sm font-bold uppercase mb-2" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                    <div className="text-sm font-extrabold uppercase mb-2">
                       Brak aktywnej listy w gospodarstwie {currentHousehold?.code}
                     </div>
                     <button
@@ -2605,12 +2498,14 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 </div>
               )}
 
-              {/* ITEMS LIST */}
-              <div className="px-3 sm:px-6 py-2 space-y-5">
+              {/* ================================================================
+                  ITEMS LIST (Full Polish Font + Compact Mobile Quantity & Price)
+              ================================================================ */}
+              <div className="px-3 sm:px-6 py-2 space-y-4">
                 {uncheckedItems.length === 0 ? (
                   <div className={`p-8 text-center ${bgCard} ${borderPixel} ${shadowPixel} my-2`}>
                     <div className="text-3xl mb-2">✨</div>
-                    <div className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                    <div className="text-sm font-extrabold uppercase">
                       Lista do zrobienia jest pusta!
                     </div>
                     <p className="text-xs opacity-75 mt-1">
@@ -2622,18 +2517,15 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     <div key={group.category} className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-1.5">
-                          <span>{group.icon}</span>
-                          <span
-                            className="text-xs font-bold uppercase tracking-wider"
-                            style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                          >
+                          <span className="text-sm">{group.icon}</span>
+                          <span className="font-mono-pl text-xs font-extrabold uppercase tracking-wider">
                             {group.category}
                           </span>
                         </div>
                         <span className="text-[11px] font-bold opacity-65">{group.items.length} poz.</span>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {group.items.map((item) => {
                           const lineCost =
                             item.unit_price !== null && item.unit_price !== undefined
@@ -2648,71 +2540,53 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                               <button
                                 type="button"
                                 onClick={() => handleToggleCheck(item)}
-                                className="min-w-[44px] sm:min-w-[50px] min-h-[50px] flex items-center justify-center border-r-2 border-[#1e1e24] hover:bg-[#10b981]/20 active:bg-[#10b981]/40 transition-colors shrink-0"
+                                className="min-w-[48px] min-h-[48px] flex items-center justify-center border-r-2 border-[#1e1e24] hover:bg-[#10b981]/20 active:bg-[#10b981]/40 transition-colors shrink-0"
+                                aria-label={`Odhacz ${item.name}`}
                               >
                                 <div className="w-6 h-6 border-2 border-[#1e1e24] bg-white flex items-center justify-center shadow-[2px_2px_0px_0px_#1e1e24]" />
                               </button>
 
+                              {/* Tapping anywhere on item opens Edit BottomSheet / Modal */}
                               <div
                                 onClick={() => setEditingItem(item)}
-                                className="flex-1 px-2 sm:px-3 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-2 cursor-pointer min-w-0"
+                                className="flex-1 px-2.5 sm:px-3 py-2 flex items-center justify-between gap-2 cursor-pointer min-w-0"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-bold text-xs sm:text-sm break-words leading-tight">
+                                  <div className="font-mono-pl font-bold text-xs sm:text-sm break-words leading-tight">
                                     {item.name}
                                   </div>
                                   {!groupByCategory && item.category && (
-                                    <span className="text-[10px] opacity-65 uppercase">{item.category}</span>
+                                    <span className="text-[10px] opacity-65 uppercase block mt-0.5">
+                                      {item.category}
+                                    </span>
                                   )}
                                 </div>
 
+                                {/* Right side: Clean Quantity + Price only (tap row to edit/delete) */}
                                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 text-right">
                                   {activeList?.list_type === 'shopping' ? (
                                     <>
-                                      <span className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-bold whitespace-nowrap ${bgSubtle} border border-[#1e1e24]`}>
+                                      <span className={`px-1.5 py-0.5 text-[11px] sm:text-xs font-bold ${bgSubtle} border border-[#1e1e24] whitespace-nowrap`}>
                                         {Number(item.quantity)} {item.unit}
                                       </span>
                                       {item.unit_price !== null && item.unit_price !== undefined ? (
                                         <div className="text-[11px] sm:text-xs whitespace-nowrap">
-                                          <div className="font-bold text-[#10b981]">{lineCost} zł</div>
+                                          <div className="font-extrabold text-[#10b981]">{lineCost} zł</div>
                                           {Number(item.quantity) !== 1 && (
-                                            <div className="text-[10px] opacity-65">
-                                              ({Number(item.unit_price).toFixed(2)} zł/{item.unit})
+                                            <div className="text-[9px] sm:text-[10px] opacity-65">
+                                              {Number(item.unit_price).toFixed(2)}/{item.unit}
                                             </div>
                                           )}
                                         </div>
                                       ) : (
-                                        <span className="text-[11px] opacity-50 italic">+ cena</span>
+                                        <span className="text-[10px] opacity-45 italic">+ cena</span>
                                       )}
                                     </>
                                   ) : (
-                                    <span className="text-[11px] opacity-60 px-2 py-0.5 border border-current">
+                                    <span className="text-[10px] sm:text-[11px] opacity-65 px-1.5 py-0.5 border border-current whitespace-nowrap">
                                       {item.category || 'Zadanie'}
                                     </span>
                                   )}
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingItem(item);
-                                    }}
-                                    className={`hidden sm:inline-flex p-1.5 ${bgSubtle} border border-[#1e1e24] hover:bg-[#f59e0b] hover:text-[#1e1e24]`}
-                                    aria-label="Edytuj"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteItem(item.id);
-                                    }}
-                                    className={`p-1 sm:p-1.5 ${bgSubtle} border border-[#1e1e24] hover:bg-[#ef4444] hover:text-white`}
-                                    aria-label="Usuń"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -2726,11 +2600,8 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 {/* CHECKED ITEMS */}
                 {checkedItems.length > 0 && (
                   <div className="pt-4 border-t-2 border-dashed border-[#1e1e24]/40">
-                    <div className="flex items-center justify-between mb-2.5">
-                      <span
-                        className="text-xs font-bold uppercase tracking-wider opacity-80"
-                        style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}
-                      >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono-pl text-xs font-extrabold uppercase tracking-wider opacity-80">
                         {activeList?.list_type === 'shopping'
                           ? `KUPIONE W KOSZYKU (${checkedItems.length})`
                           : `ZAŁATWIONE / SPAKOWANE (${checkedItems.length})`}
@@ -2751,7 +2622,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                             <button
                               type="button"
                               onClick={() => handleToggleCheck(item)}
-                              className="min-w-[50px] min-h-[48px] flex items-center justify-center border-r-2 border-[#1e1e24] bg-[#10b981]/20 shrink-0"
+                              className="min-w-[48px] min-h-[46px] flex items-center justify-center border-r-2 border-[#1e1e24] bg-[#10b981]/20 shrink-0"
                             >
                               <div className="w-6 h-6 border-2 border-[#1e1e24] bg-[#10b981] flex items-center justify-center">
                                 <Check className="w-4 h-4 text-[#1e1e24] stroke-[3]" />
@@ -2760,14 +2631,14 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
                             <div
                               onClick={() => setEditingItem(item)}
-                              className="flex-1 px-3 py-2 flex items-center justify-between gap-2 cursor-pointer min-w-0"
+                              className="flex-1 px-2.5 sm:px-3 py-2 flex items-center justify-between gap-2 cursor-pointer min-w-0"
                             >
                               <div className="min-w-0">
-                                <span className="line-through font-bold text-sm opacity-75 break-words">
+                                <span className="font-mono-pl line-through font-bold text-xs sm:text-sm opacity-75 break-words">
                                   {item.name}
                                 </span>
                                 {activeList?.list_type === 'shopping' && (
-                                  <span className="ml-2 text-xs opacity-65">
+                                  <span className="ml-1.5 text-[11px] opacity-65">
                                     ({Number(item.quantity)} {item.unit}
                                     {item.unit_price
                                       ? ` • ${(Number(item.quantity) * Number(item.unit_price)).toFixed(2)} zł`
@@ -2777,27 +2648,15 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {checker && (
-                                  <div
-                                    className="flex items-center gap-1 px-1.5 py-0.5 bg-black/10 border border-[#1e1e24] text-[10px] font-bold"
-                                    title={`Odhaczone przez: ${checker.display_name}`}
-                                  >
-                                    <PixelAvatar avatarId={checker.avatar_id} colorHex={checker.color_hex} size={20} />
-                                    <span className="hidden sm:inline">{checker.display_name}</span>
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteItem(item.id);
-                                  }}
-                                  className="p-1 border border-[#1e1e24] hover:bg-[#ef4444] hover:text-white"
+                              {checker && (
+                                <div
+                                  className="flex items-center gap-1 px-1.5 py-0.5 bg-black/10 border border-[#1e1e24] text-[10px] font-bold shrink-0"
+                                  title={`Odhaczone przez: ${checker.display_name}`}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                                  <PixelAvatar avatarId={checker.avatar_id} colorHex={checker.color_hex} size={20} />
+                                  <span className="hidden sm:inline">{checker.display_name}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -2921,6 +2780,16 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 </div>
               )}
 
+              {activeList.list_type === 'shopping' && (
+                <div className="bg-[#1e1e24] text-[#f4f1ea] px-3 py-1 text-[11px] flex items-center justify-between border-t-2 border-[#1e1e24]">
+                  <span>W koszyku: <strong className="text-[#10b981]">{totals.inBasket} zł</strong></span>
+                  <span>|</span>
+                  <span>Do kupienia: <strong className="text-[#f59e0b]">{totals.toBuy} zł</strong></span>
+                  <span>|</span>
+                  <span>Suma: <strong>{totals.total} zł</strong></span>
+                </div>
+              )}
+
               <form
                 onSubmit={handleAddItemSubmit}
                 className={`${bgCard} border-t-2 border-[#1e1e24] p-2 flex items-center gap-1.5`}
@@ -2952,7 +2821,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
                 <button
                   type="submit"
-                  className={`px-4 py-2.5 bg-[#10b981] text-[#1e1e24] font-bold text-sm ${btnTactile} shrink-0 flex items-center gap-1`}
+                  className={`px-3.5 py-2.5 bg-[#10b981] text-[#1e1e24] font-bold text-xs ${btnTactile} shrink-0 flex items-center gap-1`}
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
                   <span>DODAJ</span>
@@ -2983,7 +2852,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3">
                     <div>
-                      <span className="text-xs px-1.5 py-0.5 bg-[#f59e0b] text-[#1e1e24] font-bold" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                      <span className="font-pixel-brand text-xs px-1.5 py-0.5 bg-[#f59e0b] text-[#1e1e24] font-bold">
                         {currentHousehold?.code}
                       </span>
                       <h3 className="font-bold text-base mt-1">{currentHousehold?.name}</h3>
@@ -3001,7 +2870,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     className={`w-full py-2 px-3 bg-[#3b82f6] text-white text-xs font-bold ${btnTactile} flex items-center justify-center gap-1.5`}
                   >
                     <KeyRound className="w-4 h-4" />
-                    <span>Przełącz Kod Domu / Nowy Dom</span>
+                    <span>Przełącz Kod Domu / Zmień PIN</span>
                   </button>
 
                   <div>
@@ -3095,15 +2964,26 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   </div>
                 </div>
 
-                <div className="pt-4 border-t-2 border-[#1e1e24] flex gap-2">
+                <div className="pt-4 border-t-2 border-[#1e1e24] grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setShowMobileListsDrawer(false);
+                      setShowExportModal(true);
+                    }}
+                    className={`py-2 text-xs font-bold ${bgSubtle} ${btnTactile}`}
+                  >
+                    Eksport Tekst
+                  </button>
                   <button
                     onClick={() => {
                       setShowMobileListsDrawer(false);
                       setShowSqlModal(true);
                     }}
-                    className={`flex-1 py-2 text-xs font-bold ${bgSubtle} ${btnTactile}`}
+                    className={`py-2 text-xs font-bold ${
+                      cloudConnected ? 'bg-[#10b981] text-[#1e1e24]' : bgSubtle
+                    } ${btnTactile}`}
                   >
-                    SQL & Supabase
+                    {cloudConnected ? 'Supabase OK' : 'Supabase'}
                   </button>
                 </div>
               </div>
@@ -3133,7 +3013,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                       h.id === hId ? { ...h, pin_hash: newPin } : h
                     )
                   }),
-                  `Zaktualizowano kod PIN domu`
+                  `Zaktualizowano PIN domu`
                 );
                 if (supabaseClient) {
                   await supabaseClient.from('households').update({ pin_hash: newPin }).eq('id', hId);
@@ -3184,7 +3064,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     lists: [...prev.lists, defaultShoppingList],
                     product_catalog: [...prev.product_catalog, ...seededCatalog]
                   }),
-                  `Utworzono nowe gospodarstwo: ${newHousehold.code}`
+                  `Utworzono: ${newHousehold.code}`
                 );
 
                 if (supabaseClient) {
@@ -3232,7 +3112,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                 };
                 commitDb(
                   (prev) => ({ ...prev, household_members: [...prev.household_members, newMember] }),
-                  `Nowy domownik w ${currentHousehold.code}: ${displayName}`
+                  `Nowy domownik: ${displayName}`
                 );
                 if (supabaseClient) {
                   await supabaseClient.from('household_members').insert(newMember);
@@ -3294,7 +3174,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   is_archived: false,
                   created_at: new Date().toISOString()
                 };
-                commitDb((prev) => ({ ...prev, lists: [...prev.lists, newList] }), `Utworzono nową listę: ${name}`);
+                commitDb((prev) => ({ ...prev, lists: [...prev.lists, newList] }), `Nowa lista: ${name}`);
                 if (supabaseClient) {
                   await supabaseClient.from('lists').insert(newList);
                 }
@@ -3351,7 +3231,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                         : c
                     )
                   }),
-                  `Zaktualizowano w słowniku: ${cleanName}`
+                  `Zaktualizowano: ${cleanName}`
                 );
                 if (supabaseClient) {
                   await supabaseClient
@@ -3414,10 +3294,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
           )}
 
           {toastMessage && (
-            <div
-              className="fixed top-14 right-4 z-50 bg-[#1e1e24] text-[#f59e0b] border-2 border-[#f59e0b] px-4 py-2.5 text-xs font-bold shadow-[4px_4px_0px_0px_#000000] flex items-center gap-2 max-w-sm"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
+            <div className="fixed top-14 right-3 z-50 bg-[#1e1e24] text-[#f59e0b] border-2 border-[#f59e0b] px-3 py-2 text-xs font-bold shadow-[4px_4px_0px_0px_#000000] flex items-center gap-2 max-w-[90vw] sm:max-w-sm font-mono-pl">
               <Sparkles className="w-4 h-4 shrink-0" />
               <span>{toastMessage}</span>
             </div>
@@ -3452,10 +3329,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 font-mono-pl">
           <div className={`w-full sm:max-w-md ${bgCard} border-t-4 sm:border-2 border-[#1e1e24] shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-5`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
-              <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+              <h3 className="text-sm font-extrabold uppercase">
                 Edytuj pozycję
               </h3>
               <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
@@ -3597,7 +3474,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       const [pinQuery, setPinQuery] = useState('');
       const [errorMsg, setErrorMsg] = useState('');
 
-      // New household creation fields
       const [newCode, setNewCode] = useState('');
       const [newName, setNewName] = useState('');
       const [newPin, setNewPin] = useState('');
@@ -3605,7 +3481,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       const [avatarId, setAvatarId] = useState('knight');
       const [colorHex, setColorHex] = useState('#3b82f6');
 
-      // Current household PIN update field
       const [editPinValue, setEditPinValue] = useState(currentHousehold?.pin_hash || '');
 
       const handleJoinByCode = (e) => {
@@ -3663,8 +3538,8 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       const wrapperClass = isStandaloneGate
-        ? 'w-full max-w-lg'
-        : 'fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3';
+        ? 'w-full max-w-lg font-mono-pl'
+        : 'fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl';
 
       return (
         <div className={wrapperClass}>
@@ -3675,7 +3550,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   <Shield className="w-4 h-4 text-[#1e1e24]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                  <h3 className="text-xs sm:text-sm font-extrabold uppercase">
                     {isStandaloneGate ? 'PIXELCART — LOGOWANIE DO DOMU' : 'DOSTĘP I KOD PIN DOMU'}
                   </h3>
                   <p className="text-[11px] opacity-75">
@@ -3755,19 +3630,18 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   </button>
                 </form>
 
-                {/* Active household PIN settings (only visible when logged in) */}
                 {currentHousehold && (
                   <div className={`p-3.5 ${bgSubtle} ${borderPixel} space-y-2.5`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-xs font-bold uppercase">
-                        Акtywny Dom: <strong className="text-[#3b82f6]">{currentHousehold.code}</strong> ({currentHousehold.name})
+                        Aktywny Dom: <strong className="text-[#3b82f6]">{currentHousehold.code}</strong> ({currentHousehold.name})
                       </span>
                       <button
                         type="button"
                         onClick={onLogoutHousehold}
                         className="px-2 py-1 bg-[#ef4444] text-white text-[11px] font-bold border border-[#1e1e24]"
                       >
-                        Wyloguj z tego domu
+                        Wyloguj z domu
                       </button>
                     </div>
 
@@ -3795,7 +3669,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                   </div>
                 )}
 
-                {/* Only show households that were already unlocked with PIN on this device */}
                 {unlockedHouseholds.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="text-[11px] font-bold uppercase opacity-75">
@@ -3812,7 +3685,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs px-1.5 py-0.5 bg-[#1e1e24] text-[#f59e0b]" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                            <span className="font-bold text-xs px-1.5 py-0.5 bg-[#1e1e24] text-[#f59e0b]">
                               🔒 {h.code}
                             </span>
                             <span className="text-xs font-bold">{h.name}</span>
@@ -3939,10 +3812,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl">
           <div className={`w-full max-w-xl ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-5 max-h-[92vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
-              <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+              <h3 className="text-xs sm:text-sm font-extrabold uppercase">
                 DOMOWNICY I AWATARY ({household.code}) — {members.length}/5
               </h3>
               <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
@@ -4059,10 +3932,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl">
           <div className={`w-full max-w-md ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-5`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
-              <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+              <h3 className="text-sm font-extrabold uppercase">
                 EDYTUJ LUB USUŃ LISTĘ
               </h3>
               <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
@@ -4157,10 +4030,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl">
           <div className={`w-full max-w-md ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-5`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
-              <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+              <h3 className="text-sm font-extrabold uppercase">
                 NOWA LISTA
               </h3>
               <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
@@ -4214,6 +4087,9 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       );
     }
 
+    // ============================================================================
+    // SUB-COMPONENT: DICTIONARY MODAL (Clean 2-Column Layout — No Price/Category Overlap)
+    // ============================================================================
     function DictionaryModal({
       household, catalog, onClose, onAddCatalogItem, onUpdateCatalogItem, onDeleteCatalogItem, bgCard, bgSubtle, btnTactile, borderPixel
     }) {
@@ -4251,22 +4127,22 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
-          <div className={`w-full max-w-3xl ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-6 max-h-[90vh] flex flex-col`}>
-            <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-3">
-              <div>
-                <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
-                  SŁOWNIK PRODUKTÓW DOMU ({household.code})
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-3 font-mono-pl">
+          <div className={`w-full max-w-3xl ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-3.5 sm:p-6 max-h-[92vh] flex flex-col`}>
+            <div className="flex items-center justify-between gap-2 border-b-2 border-[#1e1e24] pb-3 mb-3">
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-extrabold uppercase truncate">
+                  SŁOWNIK PRODUKTÓW ({household.code})
                 </h3>
-                <p className="text-xs opacity-75">{catalog.length} produktów w słowniku</p>
+                <p className="text-[11px] opacity-75">{catalog.length} produktów w bazie domu</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddForm((prev) => !prev)}
-                  className={`px-3 py-1.5 bg-[#10b981] text-[#1e1e24] text-xs font-bold ${btnTactile} flex items-center gap-1`}
+                  className={`px-2.5 py-1.5 bg-[#10b981] text-[#1e1e24] text-xs font-bold ${btnTactile} flex items-center gap-1`}
                 >
-                  <Plus className="w-3.5 h-3.5" /> Dodaj produkt
+                  <Plus className="w-3.5 h-3.5" /> <span>Dodaj</span>
                 </button>
                 <button onClick={onClose} className={`p-1.5 ${bgSubtle} ${borderPixel}`}>
                   <X className="w-4 h-4" />
@@ -4340,71 +4216,87 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
               </select>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {filtered.map((item) => {
                 const isEditing = editingId === item.id;
                 return (
-                  <div key={item.id} className={`p-2.5 ${bgSubtle} border border-[#1e1e24] flex flex-wrap items-center justify-between gap-2 text-xs`}>
+                  <div key={item.id} className={`p-2.5 ${bgSubtle} border-2 border-[#1e1e24] text-xs`}>
                     {isEditing ? (
-                      <div className="w-full flex flex-wrap items-center gap-2">
+                      <div className="w-full flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
                         <input
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className={`flex-1 min-w-[150px] px-2 py-1 ${bgCard} border border-[#1e1e24] font-bold`}
+                          className={`flex-1 min-w-[140px] px-2 py-1.5 ${bgCard} border border-[#1e1e24] font-bold`}
                         />
                         <select
                           value={editCategory}
                           onChange={(e) => setEditCategory(e.target.value)}
-                          className={`px-2 py-1 ${bgCard} border border-[#1e1e24] font-bold`}
+                          className={`px-2 py-1.5 ${bgCard} border border-[#1e1e24] font-bold`}
                         >
                           {SHOPPING_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
                         </select>
-                        <select
-                          value={editUnit}
-                          onChange={(e) => setEditUnit(e.target.value)}
-                          className={`px-1.5 py-1 ${bgCard} border border-[#1e1e24] font-bold`}
-                        >
-                          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={editPrice}
-                          onChange={(e) => setEditPrice(e.target.value)}
-                          className={`w-20 px-2 py-1 ${bgCard} border border-[#1e1e24] font-bold`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const p = parseFloat(String(editPrice).replace(',', '.'));
-                            onUpdateCatalogItem(item.id, {
-                              name: editName,
-                              price: !isNaN(p) ? Number(p.toFixed(2)) : null,
-                              unit: editUnit,
-                              category: editCategory
-                            });
-                            setEditingId(null);
-                          }}
-                          className="px-2.5 py-1 bg-[#10b981] text-[#1e1e24] font-bold border border-[#1e1e24]"
-                        >
-                          Zapisz
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={editUnit}
+                            onChange={(e) => setEditUnit(e.target.value)}
+                            className={`px-2 py-1.5 ${bgCard} border border-[#1e1e24] font-bold`}
+                          >
+                            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Cena"
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(e.target.value)}
+                            className={`w-24 px-2 py-1.5 ${bgCard} border border-[#1e1e24] font-bold`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const p = parseFloat(String(editPrice).replace(',', '.'));
+                              onUpdateCatalogItem(item.id, {
+                                name: editName,
+                                price: !isNaN(p) ? Number(p.toFixed(2)) : null,
+                                unit: editUnit,
+                                category: editCategory
+                              });
+                              setEditingId(null);
+                            }}
+                            className="px-3 py-1.5 bg-[#10b981] text-[#1e1e24] font-bold border border-[#1e1e24]"
+                          >
+                            Zapisz
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="px-2 py-1.5 bg-black/10 font-bold border border-[#1e1e24]"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="w-full flex items-center justify-between gap-2 min-w-0">
+                      /* Clean Two-Column Layout: Left = Name + Category underneath; Right = Price Badge + Edit/Delete icons */
+                      <div className="flex items-center justify-between gap-2.5">
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold leading-tight break-words">{item.name}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1">
-                            <span className="px-1.5 py-0.5 bg-black/10 text-[10px] leading-tight break-words max-w-full">{item.category}</span>
-                            {item.default_unit && (
-                              <span className="text-[10px] opacity-65">• {item.default_unit}</span>
-                            )}
+                          <div className="font-bold text-xs sm:text-sm leading-tight break-words">
+                            {item.name}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-block px-1.5 py-0.5 bg-black/10 border border-[#1e1e24]/30 text-[10px] font-semibold">
+                              {item.category}
+                            </span>
+                            <span className="text-[10px] opacity-65">
+                              ({item.default_unit})
+                            </span>
                           </div>
                         </div>
+
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="px-1.5 py-0.5 border border-[#1e1e24] bg-black/5 text-[11px] font-bold text-[#10b981] whitespace-nowrap">
-                            {item.last_known_price ? `${Number(item.last_known_price).toFixed(2)} zł / ${item.default_unit}` : (item.default_unit || '—')}
+                          <span className={`px-2 py-1 ${bgCard} border border-[#1e1e24] font-extrabold text-[11px] sm:text-xs text-[#10b981] whitespace-nowrap`}>
+                            {item.last_known_price ? `${Number(item.last_known_price).toFixed(2)} zł` : '— zł'}
                           </span>
                           <button
                             type="button"
@@ -4415,18 +4307,16 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                               setEditUnit(item.default_unit || 'szt.');
                               setEditCategory(item.category || 'Inne');
                             }}
-                            className="p-1.5 bg-black/10 hover:bg-[#f59e0b] hover:text-[#1e1e24] border border-[#1e1e24]"
-                            aria-label="Edytuj"
-                            title="Edytuj"
+                            className={`p-1.5 ${bgCard} hover:bg-[#f59e0b] hover:text-[#1e1e24] border border-[#1e1e24]`}
+                            title="Edytuj produkt"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => onDeleteCatalogItem(item.id)}
-                            className="p-1.5 bg-black/10 hover:bg-[#ef4444] hover:text-white border border-[#1e1e24]"
-                            aria-label="Usuń"
-                            title="Usuń"
+                            className={`p-1.5 ${bgCard} hover:bg-[#ef4444] hover:text-white border border-[#1e1e24]`}
+                            title="Usuń ze słownika"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -4477,10 +4367,10 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl">
           <div className={`w-full max-w-lg ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-5`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-4">
-              <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+              <h3 className="text-sm font-extrabold uppercase">
                 UDOSTĘPNIJ / EKSPORTUJ TEKST
               </h3>
               <button onClick={onClose} className={`p-1 ${bgSubtle} ${borderPixel}`}>
@@ -4492,7 +4382,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
               readOnly
               value={plainText}
               rows={10}
-              className={`w-full p-3 text-xs font-mono ${bgSubtle} ${borderPixel} mb-3`}
+              className={`w-full p-3 text-xs font-mono-pl ${bgSubtle} ${borderPixel} mb-3`}
             />
 
             <div className="flex justify-end gap-2">
@@ -4511,9 +4401,6 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       );
     }
 
-    // ============================================================================
-    // SUB-COMPONENT: SQL & LIVE SUPABASE CLOUD CONNECTION MODAL
-    // ============================================================================
     function SqlSetupModal({
       supaConfig, cloudConnected, onSaveSupaConfig, onClose, onCopied, bgCard, bgSubtle, btnTactile, borderPixel
     }) {
@@ -4531,11 +4418,11 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
       };
 
       return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 font-mono-pl">
           <div className={`w-full max-w-3xl ${bgCard} ${borderPixel} shadow-[6px_6px_0px_0px_#1e1e24] p-4 sm:p-6 max-h-[92vh] flex flex-col overflow-y-auto`}>
             <div className="flex items-center justify-between border-b-2 border-[#1e1e24] pb-3 mb-3">
               <div>
-                <h3 className="text-sm font-bold uppercase" style={{ fontFamily: "'VT323', 'JetBrains Mono', monospace" }}>
+                <h3 className="text-xs sm:text-sm font-extrabold uppercase">
                   POŁĄCZENIE SUPABASE CLOUD + SCHEMAT SQL
                 </h3>
                 <p className="text-xs opacity-75">
@@ -4547,19 +4434,18 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
               </button>
             </div>
 
-            {/* Interactive Supabase Connection Form */}
             <form onSubmit={handleConnectSubmit} className={`p-3.5 mb-4 ${bgSubtle} ${borderPixel} space-y-3`}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="text-xs font-bold uppercase flex items-center gap-1.5">
                   <Cloud className="w-4 h-4 text-[#3b82f6]" />
-                  <span>Konfiguracja Połączenia na Żywo (Supabase JS v2)</span>
+                  <span>Konfiguracja Połączenia na Żywo</span>
                 </span>
                 <span
                   className={`px-2 py-0.5 text-[10px] font-bold border border-[#1e1e24] ${
                     cloudConnected ? 'bg-[#10b981] text-[#1e1e24]' : 'bg-[#f59e0b] text-[#1e1e24]'
                   }`}
                 >
-                  {cloudConnected ? 'POŁĄCZONO Z CHMURĄ' : 'TRYB LOKALNY (OFFLINE)'}
+                  {cloudConnected ? 'POŁĄCZONO Z CHMURĄ' : 'TRYB LOKALNY'}
                 </span>
               </div>
 
@@ -4592,7 +4478,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <span className="text-[11px] opacity-75">
-                  Możesz też wpisać te klucze na stałe w pliku <code>index.html</code> w sekcji <code>PIXELCART_SUPABASE_CONFIG</code>.
+                  Możesz też wpisać klucze na stałe w pliku <code>index.html</code> (<code>PIXELCART_SUPABASE_CONFIG</code>).
                 </span>
                 <div className="flex items-center gap-2">
                   {url && (
@@ -4612,7 +4498,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
                     type="submit"
                     className={`px-4 py-1.5 bg-[#10b981] text-[#1e1e24] text-xs font-bold ${btnTactile}`}
                   >
-                    Zapisz i Połącz z Supabase
+                    Zapisz i Połącz
                   </button>
                 </div>
               </div>
@@ -4621,7 +4507,7 @@ CREATE POLICY "Public anon access items" ON public.list_items FOR ALL USING (tru
             <div className="text-xs font-bold uppercase mb-1.5">
               Skrypt SQL (Wklej w Supabase → SQL Editor → New Query → RUN):
             </div>
-            <pre className={`flex-1 min-h-[220px] p-3 text-[11px] font-mono overflow-auto ${bgSubtle} ${borderPixel} mb-3`}>
+            <pre className={`flex-1 min-h-[200px] p-3 text-[11px] font-mono-pl overflow-auto ${bgSubtle} ${borderPixel} mb-3`}>
               {SUPABASE_SQL_SCHEMA}
             </pre>
 
